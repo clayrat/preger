@@ -1,0 +1,7 @@
+package preger
+
+sourcedir = src
+
+modules = ChaiebNipkow
+
+pkgs = contrib
