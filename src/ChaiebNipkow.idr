@@ -70,13 +70,33 @@ qelimF qe (Disj p q) = Disj (qelimF qe p) (qelimF qe q)
 qelimF qe (Impl p q) = Impl (qelimF qe p) (qelimF qe q)
 qelimF _  p          = p
 
--- Notations
+-- Helpers
 
 Not0 : Integer -> Type
 Not0 k = Not (k = 0)
 
 not01 : Not0 1 
 not01 = really_believe_me ()
+
+mulnz : Not0 a -> Not0 b -> Not0 (a*b)
+mulnz anz bnz = really_believe_me ()
+
+m0p0 : (k : Integer) -> 0-k = 0 -> k = 0
+m0p0 k prf = really_believe_me prf
+
+data FOrd : (i, j : Fin n) -> Type where
+  Less : Nat.LTE (finToNat (FS i)) (finToNat j) -> FOrd i j
+  Equal : i = j -> FOrd i j
+  Greater : Nat.LTE (finToNat (FS j)) (finToNat i) -> FOrd i j
+
+fCompare : (i, j : Fin n) -> FOrd i j
+fCompare {n=S _}  FZ     FZ    = Equal Refl
+fCompare {n=S _}  FZ    (FS x) = Less $ LTESucc LTEZero
+fCompare {n=S _} (FS x)  FZ    = Greater $ LTESucc LTEZero
+fCompare {n=S _} (FS x) (FS y) with (fCompare x y)
+  | Less l = Less $ LTESucc l
+  | Equal e = Equal $ cong e
+  | Greater g = Greater $ LTESucc g
 
 Zero : Exp n
 Zero {n} = Val {n} 0
@@ -112,6 +132,8 @@ data IsNNF : Form n -> Type where
 NNF : Nat -> Type
 NNF n = (f : Form n ** IsNNF f) 
 
+-- TODO: `assert_total` needed since Idris apparently can't see structure decreasing under sigma
+
 nnfNeg : (f : NNF n) -> NNF n
 nnfNeg (Lte t1 t2 ** LteNNF)           = ((t2 `Plus` (Val 1)) `Lte` t1 ** LteNNF)
 nnfNeg (Equ t1 t2 ** EquNNF)           = (Notf (t1 `Equ` t2) ** NeqNNF)
@@ -143,15 +165,15 @@ qfreeNnf (Impl f1 f2 ** ImplQF qf1 qf2) = case (nnfNeg $ assert_total $ qfreeNnf
                                                        , assert_total $ qfreeNnf (f2 ** qf2)) of  
   ((p1 ** np1), (p2 ** np2)) => (p1 `Disj` p2 ** DisjNNF np1 np2)
 
--- Linear
+-- Linearisation
 
 data IsELin : (n0 : Nat) -> (e : Exp n) -> Type where
-  ValELin : {n0 : Nat} -> {k : Integer} -> IsELin n0 (Val {n} k)
-  VarELin : {n0 : Nat} -> {k : Integer} -> {p : Fin n} -> {r : Exp n} 
-         -> (knz : Not0 k) 
-         -> (n0ltep : n0 `Nat.LTE` finToNat p) 
-         -> (pr : IsELin (S (finToNat p)) r) 
-         -> IsELin n0 (Plus (Times k (Var p)) r)
+  ValEL : {n0 : Nat} -> {k : Integer} -> IsELin n0 (Val {n} k)
+  VarEL : {n0 : Nat} -> {k : Integer} -> {p : Fin n} -> {r : Exp n} 
+       -> (knz : Not0 k) 
+       -> (n0lep : n0 `Nat.LTE` finToNat p) 
+       -> (pr : IsELin (S (finToNat p)) r) 
+       -> IsELin n0 (Plus (Times k (Var p)) r)
 
 ELin : Nat -> Nat -> Type
 ELin n p = (e : Exp n ** IsELin p e)
@@ -167,3 +189,67 @@ data IsLin : Form n -> Type where
   
 Lin : Nat -> Type
 Lin n = (f : Form n ** IsLin f)
+
+linInject : Nat.LTE p1 p2 -> IsELin p2 r -> IsELin p1 r
+linInject _     ValEL               = ValEL
+linInject le12 (VarEL knz le2p pr) = VarEL knz (lteTransitive le12 le2p) pr
+
+linNeg : ELin n p -> ELin n p
+linNeg (Val k ** ValEL) = (Val (-k) ** ValEL)
+linNeg (Plus (Times k (Var p)) r ** VarEL knz n0lep pr) = case (assert_total $ linNeg (r ** pr)) of 
+  (e ** pe) => (((-k) `Times` (Var p)) `Plus` e ** VarEL (knz . m0p0 k) n0lep pe)
+
+linPlus : ELin n p -> ELin n p -> ELin n p
+linPlus (Val k ** ValEL)                                 (Val l ** ValEL)                                 = (Val (k+l) ** ValEL)
+linPlus (Val k ** ValEL)                                 (Plus (Times l (Var t)) r ** VarEL lnz n0let pr) = 
+  case (assert_total $ linPlus (Val k ** ValEL) (r ** pr)) of
+    (e ** pe) => ((l `Times` (Var t)) `Plus` e ** VarEL lnz n0let pe)
+linPlus (Plus (Times k (Var p)) r ** VarEL knz n0lep pr) (Val l ** ValEL)                                  =
+  case (assert_total $ linPlus (r ** pr) (Val l ** ValEL)) of
+    (e ** pe) => ((k `Times` (Var p)) `Plus` e ** VarEL knz n0lep pe)
+linPlus (Plus (Times k (Var p)) r ** VarEL knz n0lep pr) (Plus (Times l (Var t)) s ** VarEL lnz n0let ps) with (fCompare p t)
+  | Less lpt = case (assert_total $ linPlus (r ** pr) (Plus (Times l (Var t)) s ** VarEL lnz lpt ps)) of
+                 (e ** pe) => ((k `Times` (Var p)) `Plus` e ** VarEL knz n0lep pe)
+  | Equal ept = case (assert_total $ linPlus (r ** pr) (s ** rewrite ept in ps)) of 
+                  (e ** pe) => case (decEq (k+l) 0) of
+                                Yes _  => (e ** linInject (lteSuccRight n0lep) pe)
+                                No neq => (((k+l) `Times` (Var p)) `Plus` e ** VarEL neq n0lep pe)
+  | Greater gpt = case (assert_total $ linPlus (Plus (Times k (Var p)) r ** VarEL knz gpt pr) (s ** ps)) of
+                    (e ** pe) => ((l `Times` (Var t)) `Plus` e ** VarEL lnz n0let pe)
+  
+  
+linMult : Integer -> ELin n p -> ELin n p
+linMult x (Val k ** ValEL)                                 = (Val (x * k) ** ValEL)
+linMult x (Plus (Times k (Var p)) r ** VarEL knz n0lep pr) = case (decEq x 0) of 
+  Yes _ => (Val 0 ** ValEL)
+  No xnz => case (assert_total $ linMult x (r ** pr)) of 
+          (e ** pe) => (((x*k) `Times` (Var p)) `Plus` e ** VarEL (mulnz xnz knz) n0lep pe)
+
+elin : Exp n -> ELin n Z
+elin (Val k)       = (Val k ** ValEL)
+elin (Var p)       = ((1 `Times` (Var p)) `Plus` Zero ** VarEL not01 LTEZero ValEL)
+elin (Negate e)    = linNeg (elin e)
+elin (Plus e1 e2)  = linPlus (elin e1) (elin e2)
+elin (Minus e1 e2) = linPlus (elin e1) (linNeg $ elin e2)
+elin (Times k e)   = linMult k (elin e)
+
+lin : NNF n -> Lin n
+lin (Lte t1 t2 ** LteNNF)           = case (elin (t1 `Minus` t2)) of 
+  (e ** pe) => (e `Lte` Zero ** LteLin pe)
+lin (Equ t1 t2 ** EquNNF)           = case (elin (t1 `Minus` t2)) of 
+  (e ** pe) => (e `Equ` Zero ** EqLin pe)
+lin (Notf (Equ t1 t2) ** NeqNNF)    = case (elin (t1 `Minus` t2)) of 
+  (e ** pe) => (Notf (e `Equ` Zero) ** NeqLin pe)
+lin (Dvd k t ** DvdNNF)             = case (elin t) of 
+  (e ** pe) => case (decEq k 0) of 
+    Yes _ => (e `Equ` Zero ** EqLin pe)
+    No knz => (k `Dvd` e ** DvdLin knz pe)
+lin (Notf (Dvd k t) ** NdvdNNF)     = case (elin t) of 
+  (e ** pe) => case (decEq k 0) of 
+    Yes _ => (Notf (e `Equ` Zero) ** NeqLin pe)
+    No knz => (Notf (k `Dvd` e) ** NdvdLin knz pe)
+lin (Conj f1 f2 ** ConjNNF nf1 nf2) = case (assert_total $ lin (f1 ** nf1), assert_total $ lin (f2 ** nf2)) of 
+  ((p1 ** np1), (p2 ** np2)) => (p1 `Conj` p2 ** ConjLin np1 np2)
+lin (Disj f1 f2 ** DisjNNF nf1 nf2) = case (assert_total $ lin (f1 ** nf1), assert_total $ lin (f2 ** nf2)) of 
+  ((p1 ** np1), (p2 ** np2)) => (p1 `Disj` p2 ** DisjLin np1 np2)
+  
