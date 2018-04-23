@@ -3,8 +3,11 @@ module ChaiebNipkow
 import Data.So
 import Data.Fin
 import Data.Vect
+import Data.Sign
 
 %default total
+
+-- TODO use ZZ or Biz instead of Integer to avoid totality/proof issues
 
 -- expression with n variables
 
@@ -75,6 +78,50 @@ qelimF _  p          = p
 Not0 : Integer -> Type
 Not0 k = Not (k = 0)
 
+Signed Integer where
+  sign x with (compare x 0)
+    | LT = Minus
+    | EQ = Zero
+    | GT = Plus
+
+notzs : Not0 x -> Not (sign x = Zero)
+notzs nzx = really_believe_me nzx
+
+opposite : Sign -> Sign
+opposite Plus  = Minus
+opposite Zero  = Zero
+opposite Minus = Plus
+
+multiply : Sign -> Sign -> Sign
+multiply Zero  _    = Zero
+multiply _     Zero = Zero
+multiply Plus  x    = x
+multiply Minus x    = opposite x
+
+fromSign : Sign -> Integer
+fromSign Plus = 1    
+fromSign Zero = 0
+fromSign Minus = -1
+
+Uninhabited (Minus = Zero) where
+  uninhabited Refl impossible
+
+Uninhabited (Plus = Zero) where
+  uninhabited Refl impossible
+
+mulsnz : (x, y : Sign) -> Not (x=Zero) -> Not (y=Zero) -> Not (multiply x y = Zero)
+mulsnz Zero  _     xnz _   = absurd $ xnz Refl
+mulsnz _     Zero  _   ynz = absurd $ ynz Refl
+mulsnz Plus  Plus  _   _   = uninhabited
+mulsnz Plus  Minus _   _   = uninhabited
+mulsnz Minus Plus  _   _   = uninhabited
+mulsnz Minus Minus _   _   = uninhabited
+
+absFromSign : (s : Sign) -> Not (s = Zero) -> abs (fromSign s) = 1
+absFromSign Plus  _  = Refl
+absFromSign Zero  nz = absurd $ nz Refl
+absFromSign Minus _  = Refl
+
 NotNull : Type
 NotNull = (k ** Not0 k)
 
@@ -86,6 +133,9 @@ oneNN = (1 ** not01)
 
 mulnz : Not0 a -> Not0 b -> Not0 (a*b)
 mulnz anz bnz = really_believe_me ()
+
+mulnz2 : Not0 (a*b) -> (Not0 a, Not0 b)
+mulnz2 abnz = (really_believe_me (), really_believe_me ())
 
 m0p0 : (k : Integer) -> 0-k = 0 -> k = 0
 m0p0 k prf = really_believe_me prf
@@ -104,6 +154,9 @@ divRefl k = replace {P=\x=>Divides k x} (m1 k) (DivBy {div=1})
 
 divTrans : (x, y, z : Integer) -> Divides x y -> Divides y z -> Divides x z
 divTrans x (x*xy) ((x*xy)*yz) (DivBy {div=xy}) (DivBy {div=yz}) = replace {P=\t=>Divides x t} (massoc x xy yz) (DivBy {div=xy*yz})
+
+zeroNotDivides : Divides d x -> Not (x=0) -> Not (d=0)
+zeroNotDivides (DivBy {div}) xnz = fst $ mulnz2 xnz
 
 data LCM : (i : Integer) -> (j : Integer) -> (d : Integer) -> Type where
   MkLCM : Divides i d
@@ -326,6 +379,7 @@ lcme {n=Z}   (Plus (Times _ (Var i)) _ ** VarEL _ _ _)         = absurd i
 lcme {n=S _} (Plus (Times k (Var FZ)) _ ** VarEL knz _ pr)     = ((k ** knz) ** Var0ED (divRefl k) pr)
 lcme {n=S n} (Plus (Times _ (Var (FS i))) _ ** VarEL knz _ pr) = (oneNN ** VarNED {p=finToNat i} {s=oneNN} $ VarEL knz lteRefl pr)
 
+partial -- can't fix this with Integers
 lcmf : (f : Lin n) -> (x : NotNull ** Div x (fst f))
 lcmf (Lte t (Zero {n})        ** LteLin  pr)      = case lcme (t ** pr) of
                                                       (e ** pe) => (e ** LteDiv pe)
@@ -355,3 +409,34 @@ lcmf (Disj f1 f2              ** DisjLin pr1 pr2) =
            (dnn ** DisjDiv {s=dnn}
                    (divExt d1 dnn z1d)
                    (divExt d2 dnn z2d))
+
+data IsEUni : Exp n -> Type where
+  ValEU :  IsEUni (Val {n} k)
+  VarNEU : {t : Exp n} -> (pr : IsELin (S p) t) -> IsEUni t
+  Var0EU : {t : Exp (S n)} -> (k1 : abs k = 1) -> (pr : IsELin 1 t) -> IsEUni (MulV0 k `Plus` t)
+
+EUni : Nat -> Type
+EUni n = (e : Exp n ** IsEUni e)
+
+elinEuni : {e : Exp n} -> IsELin (S p) e -> IsEUni e
+elinEuni  ValEL               = ValEU
+elinEuni (VarEL knz n0lep pr) = VarNEU (VarEL knz n0lep pr)
+
+data IsUni : Form n -> Type where
+  LteUni  : (pr : IsEUni t1) -> IsUni (t1 `Lte` Zero)
+  Equni   : (pr : IsEUni t1) -> IsUni (t1 `Equ` Zero)
+  NeqUni  : {t1 : Exp n} -> (pr : IsEUni t1) -> IsUni (Notf $ (t1 `Equ` Zero))
+  DvdUni  : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (k `Dvd` t1)
+  NdvdUni : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (Notf $ (k `Dvd` t1))
+  ConjUni : {f1, f2 : Form n} -> (pr1 : IsUni f1) -> (pr2 : IsUni f2) -> IsUni (f1 `Conj` f2)
+  DisjUni : {f1, f2 : Form n} -> (pr1 : IsUni f1) -> (pr2 : IsUni f2) -> IsUni (f1 `Disj` f2)
+
+Uni : Nat -> Type
+Uni n = (f : Form n ** IsUni f)
+
+unitExp : (e : ELin n p) -> (s : NotNull) -> EDiv s (fst e) -> EUni n
+unitExp (Val k ** ValEL) _  ValED      = (Val k ** ValEU)
+unitExp (e ** _)         _ (VarNED pr) = (e ** elinEuni pr)
+unitExp (MulV0 k `Plus` t ** he) (q ** qnz) (Var0ED kd pr) = case linMult q (t ** pr) of 
+  (i ** hi) => let skq = sign k `multiply` sign q in 
+               (MulV0 (fromSign skq) `Plus` i ** Var0EU (absFromSign skq $ mulsnz (sign k) (sign q) (notzs $ zeroNotDivides kd qnz) (notzs qnz)) hi)
