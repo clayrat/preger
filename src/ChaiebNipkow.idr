@@ -140,23 +140,24 @@ mulnz2 abnz = (really_believe_me (), really_believe_me ())
 m0p0 : (k : Integer) -> 0-k = 0 -> k = 0
 m0p0 k prf = really_believe_me prf
 
-m1 : (k : Integer) -> k*1 = k
+m1 : (k : Integer) -> 1*k = k
 m1 k = really_believe_me ()
 
 massoc : (x,y,z : Integer) -> x*(y*z) = (x*y)*z
 massoc x y z = really_believe_me ()
 
-data Divides : (d : Integer) -> Integer -> Type where
-  DivBy : Divides d (d * div)
+data Divides : (d : Integer) -> (x : Integer) -> Type where
+  DivBy : x = q*d -> Divides d x
 
 divRefl : (k : Integer) -> Divides k k
-divRefl k = replace {P=\x=>Divides k x} (m1 k) (DivBy {div=1})
-
+divRefl k = DivBy {q=1} (sym $ m1 k)
+  
 divTrans : (x, y, z : Integer) -> Divides x y -> Divides y z -> Divides x z
-divTrans x (x*xy) ((x*xy)*yz) (DivBy {div=xy}) (DivBy {div=yz}) = replace {P=\t=>Divides x t} (massoc x xy yz) (DivBy {div=xy*yz})
+divTrans x y z (DivBy {q=q1} xy) (DivBy {q=q2} yz) = 
+  DivBy {q=q2*q1} $ rewrite sym $ massoc q2 q1 x in rewrite sym xy in yz
 
-zeroNotDivides : Divides d x -> Not (x=0) -> Not (d=0)
-zeroNotDivides (DivBy {div}) xnz = fst $ mulnz2 xnz
+--zeroNotDivides : Divides d x -> Not (x=0) -> Not (d=0)
+--zeroNotDivides {d} (DivBy {q} dx) xnz = snd $ mulnz2 {a=q} {b=d} $ rewrite sym dx in xnz
 
 data LCM : (i : Integer) -> (j : Integer) -> (d : Integer) -> Type where
   MkLCM : Divides i d
@@ -424,7 +425,7 @@ elinEuni (VarEL knz n0lep pr) = VarNEU (VarEL knz n0lep pr)
 
 data IsUni : Form n -> Type where
   LteUni  : (pr : IsEUni t1) -> IsUni (t1 `Lte` Zero)
-  Equni   : (pr : IsEUni t1) -> IsUni (t1 `Equ` Zero)
+  EqUni   : (pr : IsEUni t1) -> IsUni (t1 `Equ` Zero)
   NeqUni  : {t1 : Exp n} -> (pr : IsEUni t1) -> IsUni (Notf $ (t1 `Equ` Zero))
   DvdUni  : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (k `Dvd` t1)
   NdvdUni : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (Notf $ (k `Dvd` t1))
@@ -435,8 +436,47 @@ Uni : Nat -> Type
 Uni n = (f : Form n ** IsUni f)
 
 unitExp : (e : ELin n p) -> (s : NotNull) -> EDiv s (fst e) -> EUni n
-unitExp (Val k ** ValEL) _  ValED      = (Val k ** ValEU)
-unitExp (e ** _)         _ (VarNED pr) = (e ** elinEuni pr)
-unitExp (MulV0 k `Plus` t ** he) (q ** qnz) (Var0ED kd pr) = case linMult q (t ** pr) of 
-  (i ** hi) => let skq = sign k `multiply` sign q in 
-               (MulV0 (fromSign skq) `Plus` i ** Var0EU (absFromSign skq $ mulsnz (sign k) (sign q) (notzs $ zeroNotDivides kd qnz) (notzs qnz)) hi)
+unitExp (Val k ** ValEL)          _          ValED         = (Val k ** ValEU)
+unitExp (e ** _)                  _         (VarNED pr)    = (e ** elinEuni pr)
+unitExp (MulV0 k `Plus` t ** he) (l ** lnz) (Var0ED (DivBy {q} lqk) pr) = 
+  case linMult q (t ** pr) of 
+    (i ** hi) => let skl = sign k `multiply` sign l in 
+                 (MulV0 (fromSign skl) `Plus` i ** Var0EU (absFromSign skl $ mulsnz (sign k) (sign l) (notzs $ snd $ mulnz2 {a=q} {b=k} $ rewrite sym lqk in lnz) (notzs lnz)) hi)
+
+myk : (e : ELin n p) -> (hdiv : EDiv s (fst e)) -> Integer
+myk (Val _ ** _)             ValED                   = 1
+myk (_ ** _)                (VarNED _)               = 1
+myk (MulV0 _ `Plus` _ ** _) (Var0ED (DivBy {q} _) _) = q
+
+mykNZ : (e : ELin n p) -> (hdiv : EDiv s (fst e)) -> Not0 (myk e hdiv)
+mykNZ              (Val _ ** _)              ValED                     = not01
+mykNZ              (_ ** _)                 (VarNED _)                 = not01
+mykNZ {s=(_**xnz)} (MulV0 k `Plus` _ ** _)  (Var0ED (DivBy {q} xqk) _) = fst $ mulnz2 {a=q} {b=k} $ rewrite sym xqk in xnz
+
+partial -- can't fix this with Integers
+unitariseAux : (f : Lin n) -> (s : NotNull) -> Div s (fst f) -> Uni n
+unitariseAux (Lte t (Zero {n})        ** LteLin  pr)      s (LteDiv pr0)        = 
+  case unitExp (t ** pr) s pr0 of
+    (e ** he) => (e `Lte` Zero ** LteUni he)
+unitariseAux (Equ t (Zero {n})        ** EqLin   pr)      s (EqDiv  pr0)        = 
+  case unitExp (t ** pr) s pr0 of
+    (e ** he) => (e `Equ` Zero ** EqUni he)
+unitariseAux (Notf (Equ t (Zero {n})) ** NeqLin  pr)      s (NeqDiv pr0)        = 
+  case unitExp (t ** pr) s pr0 of
+    (e ** he) => (Notf (e `Equ` Zero) ** NeqUni he)
+unitariseAux (Dvd k t                 ** DvdLin  knz pr)  s (DvdDiv knz0 pr0)   = 
+  case unitExp (t ** pr) s pr0 of
+    (e ** he) => (((myk (t ** pr) pr0) * k) `Dvd` e ** DvdUni (mulnz (mykNZ (t ** pr) pr0) knz) he)
+unitariseAux (Notf (Dvd k t)          ** NdvdLin knz pr)  s (NdvdDiv knz0 pr0)  = 
+  case unitExp (t ** pr) s pr0 of
+    (e ** he) => (Notf (((myk (t ** pr) pr0) * k) `Dvd` e) ** NdvdUni (mulnz (mykNZ (t ** pr) pr0) knz) he)
+unitariseAux (Conj f1 f2              ** ConjLin pr1 pr2) s (ConjDiv pr01 pr02) = 
+  case (assert_total $ unitariseAux (f1 ** pr1) s pr01, assert_total $ unitariseAux (f2 ** pr2) s pr02) of 
+    ((e1 ** he1), (e2 ** he2)) => (e1 `Conj` e2 ** ConjUni he1 he2)
+unitariseAux (Disj f1 f2              ** DisjLin pr1 pr2) s (DisjDiv pr01 pr02) = 
+  case (assert_total $ unitariseAux (f1 ** pr1) s pr01, assert_total $ unitariseAux (f2 ** pr2) s pr02) of 
+    ((e1 ** he1), (e2 ** he2)) => (e1 `Disj` e2 ** DisjUni he1 he2)
+
+unitarise : (f : Lin n) -> Uni n
+unitarise f = let (x ** xdiv) = assert_total $ lcmf f in 
+              assert_total $ unitariseAux f x xdiv
