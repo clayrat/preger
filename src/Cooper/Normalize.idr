@@ -1,226 +1,33 @@
-module ChaiebNipkow
+module Cooper.Normalize
 
-import Data.So
 import Data.Fin
-import Data.Vect
 import Data.Sign
+import Util
+import Cooper.Forms
 
+%access public export
 %default total
 
--- TODO use ZZ or Biz instead of Integer to avoid totality/proof issues
+-- Quantifier elimination
 
--- expression with n variables
-
-data Exp : (n : Nat) -> Type where
-  Val    : (k : Integer) -> Exp n
-  Var    : (p : Fin n) -> Exp n
-  Negate : (e : Exp n) -> Exp n
-  Plus   : (e1, e2 : Exp n) -> Exp n
-  Minus  : (e1, e2 : Exp n) -> Exp n
-  Times  : (k : Integer) -> (e : Exp n) -> Exp n
-
--- formulas with n variables
-
-data Form : (n : Nat) -> Type where
-  Top    : Form n
-  Bot    : Form n
-  Dvd    : (k : Integer) -> (e : Exp n) -> Form n
-  Lt     : (e1, e2 : Exp n) -> Form n
-  Gt     : (e1, e2 : Exp n) -> Form n
-  Lte    : (e1, e2 : Exp n) -> Form n
-  Gte    : (e1, e2 : Exp n) -> Form n
-  Equ    : (e1, e2 : Exp n) -> Form n
-  Notf   : (f : Form n) -> Form n
-  Exists : (f : Form (S n)) -> Form n
-  Forall : (f : Form (S n)) -> Form n
-  Conj   : (f1, f2 : Form n) -> Form n
-  Disj   : (f1, f2 : Form n) -> Form n
-  Impl   : (f1, f2 : Form n) -> Form n
--- Eqf  : (f1, f2 : Form n) -> Form n
-
--- Integer semantics
-
-iExp : (e : Exp n) -> (rho : Vect n Integer) -> Integer
-iExp (Val k)       _   = k
-iExp (Var p)       rho = index p rho
-iExp (Negate e)    rho = -(iExp e rho)
-iExp (Plus e1 e2)  rho = iExp e1 rho + iExp e2 rho
-iExp (Minus e1 e2) rho = iExp e1 rho - iExp e2 rho
-iExp (Times k e)   rho = k * iExp e rho
-
-iForm : (f : Form n) -> (rho : Vect n Integer) -> Type
-iForm Top          _   = Unit
-iForm Bot          _   = Void
-iForm (Dvd k e)    rho = (q ** k = q * iExp e rho)
-iForm (Lt e1 e2)   rho = So (iExp e1 rho < iExp e2 rho)
-iForm (Gt e1 e2)   rho = So (iExp e1 rho > iExp e2 rho)
-iForm (Lte e1 e2)  rho = So (iExp e1 rho <= iExp e2 rho)
-iForm (Gte e1 e2)  rho = So (iExp e1 rho >= iExp e2 rho)
-iForm (Equ e1 e2)  rho = iExp e1 rho = iExp e2 rho
-iForm (Notf f)     rho = Not (iForm f rho)
-iForm (Exists f)   rho = (k ** iForm f (k :: rho))
-iForm (Forall f)   rho = (k : Integer) -> iForm f (k :: rho)
-iForm (Conj f1 f2) rho = (iForm f1 rho, iForm f2 rho)
-iForm (Disj f1 f2) rho = Either (iForm f1 rho) (iForm f2 rho)
-iForm (Impl f1 f2) rho = iForm f1 rho -> iForm f2 rho
-
--- TODO naive
-qelimF : (qe : {k : Nat} -> Form (S k) -> Form k) -> Form n -> Form n
-qelimF qe (Forall p) = Notf (qe (Notf (qelimF qe p)))
-qelimF qe (Exists p) = qe (qelimF qe p)
-qelimF qe (Conj p q) = Conj (qelimF qe p) (qelimF qe q)
-qelimF qe (Disj p q) = Disj (qelimF qe p) (qelimF qe q)
-qelimF qe (Impl p q) = Impl (qelimF qe p) (qelimF qe q)
-qelimF _  p          = p
-
--- Helpers
-
-Not0 : Integer -> Type
-Not0 k = Not (k = 0)
-
-Signed Integer where
-  sign x with (compare x 0)
-    | LT = Minus
-    | EQ = Zero
-    | GT = Plus
-
-notzs : Not0 x -> Not (sign x = Zero)
-notzs nzx = really_believe_me nzx
-
-opposite : Sign -> Sign
-opposite Plus  = Minus
-opposite Zero  = Zero
-opposite Minus = Plus
-
-multiply : Sign -> Sign -> Sign
-multiply Zero  _    = Zero
-multiply _     Zero = Zero
-multiply Plus  x    = x
-multiply Minus x    = opposite x
-
-fromSign : Sign -> Integer
-fromSign Plus = 1    
-fromSign Zero = 0
-fromSign Minus = -1
-
-Uninhabited (Minus = Zero) where
-  uninhabited Refl impossible
-
-Uninhabited (Plus = Zero) where
-  uninhabited Refl impossible
-
-mulsnz : (x, y : Sign) -> Not (x=Zero) -> Not (y=Zero) -> Not (multiply x y = Zero)
-mulsnz Zero  _     xnz _   = absurd $ xnz Refl
-mulsnz _     Zero  _   ynz = absurd $ ynz Refl
-mulsnz Plus  Plus  _   _   = uninhabited
-mulsnz Plus  Minus _   _   = uninhabited
-mulsnz Minus Plus  _   _   = uninhabited
-mulsnz Minus Minus _   _   = uninhabited
-
-absFromSign : (s : Sign) -> Not (s = Zero) -> abs (fromSign s) = 1
-absFromSign Plus  _  = Refl
-absFromSign Zero  nz = absurd $ nz Refl
-absFromSign Minus _  = Refl
-
-NotNull : Type
-NotNull = (k ** Not0 k)
-
-not01 : Not0 1
-not01 = really_believe_me ()
-
-oneNN : NotNull
-oneNN = (1 ** not01)
-
-mulnz : Not0 a -> Not0 b -> Not0 (a*b)
-mulnz anz bnz = really_believe_me ()
-
-mulnz2 : Not0 (a*b) -> (Not0 a, Not0 b)
-mulnz2 abnz = (really_believe_me (), really_believe_me ())
-
-m0p0 : (k : Integer) -> 0-k = 0 -> k = 0
-m0p0 k prf = really_believe_me prf
-
-m1 : (k : Integer) -> 1*k = k
-m1 k = really_believe_me ()
-
-massoc : (x,y,z : Integer) -> x*(y*z) = (x*y)*z
-massoc x y z = really_believe_me ()
-
-data Divides : (d : Integer) -> (x : Integer) -> Type where
-  DivBy : x = q*d -> Divides d x
-
-divRefl : (k : Integer) -> Divides k k
-divRefl k = DivBy {q=1} (sym $ m1 k)
-  
-divTrans : (x, y, z : Integer) -> Divides x y -> Divides y z -> Divides x z
-divTrans x y z (DivBy {q=q1} xy) (DivBy {q=q2} yz) = 
-  DivBy {q=q2*q1} $ rewrite sym $ massoc q2 q1 x in rewrite sym xy in yz
-
---zeroNotDivides : Divides d x -> Not (x=0) -> Not (d=0)
---zeroNotDivides {d} (DivBy {q} dx) xnz = snd $ mulnz2 {a=q} {b=d} $ rewrite sym dx in xnz
-
-data LCM : (i : Integer) -> (j : Integer) -> (d : Integer) -> Type where
-  MkLCM : Divides i d
-       -> Divides j d
-       -> ((m : Integer) -> Divides i m -> Divides j m -> Divides d m)
-       -> LCM i j d
-
-lcm : (i, j : Integer) -> (d ** LCM i j d)
-lcm i j = ?lcm
-
-lcmNeq : (m, n : NotNull) -> LCM (fst m) (fst n) d -> Not0 d
-lcmNeq m n lmnd = really_believe_me ()
-
-data FOrd : (i, j : Fin n) -> Type where
-  Less : Nat.LTE (finToNat (FS i)) (finToNat j) -> FOrd i j
-  Equal : i = j -> FOrd i j
-  Greater : Nat.LTE (finToNat (FS j)) (finToNat i) -> FOrd i j
-
-fCompare : (i, j : Fin n) -> FOrd i j
-fCompare {n=S _}  FZ     FZ    = Equal Refl
-fCompare {n=S _}  FZ    (FS x) = Less $ LTESucc LTEZero
-fCompare {n=S _} (FS x)  FZ    = Greater $ LTESucc LTEZero
-fCompare {n=S _} (FS x) (FS y) with (fCompare x y)
-  | Less l = Less $ LTESucc l
-  | Equal e = Equal $ cong e
-  | Greater g = Greater $ LTESucc g
-
-Zero : Exp n
-Zero {n} = Val {n} 0
-
-MulV0 : (k : Integer) -> Exp (S n)
-MulV0 k = k `Times` Var FZ
-
--- Quantifier free
-
-data IsQFree : Form n -> Type where
-  LtQF  : {t1, t2 : Exp n} -> IsQFree (Lt t1 t2)
-  GtQF  : {t1, t2 : Exp n} -> IsQFree (Gt t1 t2)
-  LteQF : {t1, t2 : Exp n} -> IsQFree (Lte t1 t2)
-  GteQF : {t1, t2 : Exp n} -> IsQFree (Gte t1 t2)
-  EquQF : {t1, t2 : Exp n} -> IsQFree (Equ t1 t2)
-  DvdQF : {k : Integer} -> {t : Exp n} -> IsQFree (Dvd k t)
-  NotQF : {f : Form n} -> (pr : IsQFree f) -> IsQFree (Notf f)
-  ConjQF : {f1, f2 : Form n} -> (pr1 : IsQFree f1) -> (pr2 : IsQFree f2) -> IsQFree (Conj f1 f2)
-  DisjQF : {f1, f2 : Form n} -> (pr1 : IsQFree f1) -> (pr2 : IsQFree f2) -> IsQFree (Disj f1 f2)
-  ImplQF : {f1, f2 : Form n} -> (pr1 : IsQFree f1) -> (pr2 : IsQFree f2) -> IsQFree (Impl f1 f2)
-
-QFree : Nat -> Type
-QFree n = (f : Form n ** IsQFree f)
+--qfree : (f : Form n) -> QFree n
+--qfree Top = ?qfree_rhs_1
+--qfree Bot = ?qfree_rhs_2
+--qfree (Dvd k e) = (k `Dvd` e ** DvdQF)
+--qfree (Lt e1 e2) = (e1 `Lt` e2 ** LtQF)
+--qfree (Gt e1 e2) = (e1 `Gt` e2 ** GtQF)
+--qfree (Lte e1 e2) = (e1 `Lte` e2 ** LteQF)
+--qfree (Gte e1 e2) = (e1 `Gte` e2 ** GteQF)
+--qfree (Equ e1 e2) = (e1 `Equ` e2 ** EquQF)
+--qfree (Notf f) = case qfree f of 
+--                   (p ** hp) = (Notf p ** NotQF hp)
+--qfree (Exists f) = ?qfree_rhs_10
+--qfree (Forall f) = ?qfree_rhs_11
+--qfree (Conj f1 f2) = ?qfree_rhs_12
+--qfree (Disj f1 f2) = ?qfree_rhs_13
+--qfree (Impl f1 f2) = ?qfree_rhs_14
 
 -- Negation normal form
-
-data IsNNF : Form n -> Type where
-  LteNNF  : {t1, t2 : Exp n} -> IsNNF (Lte t1 t2)
-  EquNNF  : {t1, t2 : Exp n} -> IsNNF (Equ t1 t2)
-  NeqNNF  : {t1, t2 : Exp n} -> IsNNF (Notf (Equ t1 t2))
-  DvdNNF  : {k : Integer} -> {t : Exp n} -> IsNNF (Dvd k t)
-  NdvdNNF : {k : Integer} -> {t : Exp n} -> IsNNF (Notf (Dvd k t))
-  ConjNNF : {f1, f2 : Form n} -> (pr1 : IsNNF f1) -> (pr2 : IsNNF f2) -> IsNNF (Conj f1 f2)
-  DisjNNF : {f1, f2 : Form n} -> (pr1 : IsNNF f1) -> (pr2 : IsNNF f2) -> IsNNF (Disj f1 f2)
-
-NNF : Nat -> Type
-NNF n = (f : Form n ** IsNNF f)
 
 -- TODO: `assert_total` needed since Idris apparently can't see structure decreasing under sigma
 
@@ -256,29 +63,6 @@ qfreeNnf (Impl f1 f2 ** ImplQF qf1 qf2) = case (nnfNeg $ assert_total $ qfreeNnf
   ((p1 ** np1), (p2 ** np2)) => (p1 `Disj` p2 ** DisjNNF np1 np2)
 
 -- Linearisation
-
-data IsELin : (n0 : Nat) -> (e : Exp n) -> Type where
-  ValEL : {n0 : Nat} -> {k : Integer} -> IsELin n0 (Val {n} k)
-  VarEL : {n0 : Nat} -> {k : Integer} -> {p : Fin n} -> {r : Exp n}
-       -> (knz : Not0 k)
-       -> (n0lep : n0 `Nat.LTE` finToNat p)
-       -> (pr : IsELin (S (finToNat p)) r)
-       -> IsELin n0 (Plus (Times k (Var p)) r)
-
-ELin : Nat -> Nat -> Type
-ELin n p = (e : Exp n ** IsELin p e)
-
-data IsLin : Form n -> Type where
-  LteLin  : {t : Exp n} -> (pr : IsELin Z t) -> IsLin (Lte t Zero)
-  EqLin   : {t : Exp n} -> (pr : IsELin Z t) -> IsLin (Equ t Zero)
-  NeqLin  : {t : Exp n} -> (pr : IsELin Z t) -> IsLin (Notf $ Equ t Zero)
-  DvdLin  : {k : Integer} -> {t : Exp n} -> (knz : Not0 k) -> (pr : IsELin Z t) -> IsLin (Dvd k t)
-  NdvdLin : {k : Integer} -> {t : Exp n} -> (knz : Not0 k) -> (pr : IsELin Z t) -> IsLin (Notf $ Dvd k t)
-  ConjLin : {f1, f2 : Form n} -> (pr1 : IsLin f1) -> (pr2 : IsLin f2) -> IsLin (Conj f1 f2)
-  DisjLin : {f1, f2 : Form n} -> (pr1 : IsLin f1) -> (pr2 : IsLin f2) -> IsLin (Disj f1 f2)
-
-Lin : Nat -> Type
-Lin n = (f : Form n ** IsLin f)
 
 linInject : Nat.LTE p1 p2 -> IsELin p2 r -> IsELin p1 r
 linInject _     ValEL               = ValEL
@@ -346,20 +130,6 @@ lin (Disj f1 f2 ** DisjNNF nf1 nf2) = case ( assert_total $ lin (f1 ** nf1)
 
 -- Unitarization
 
-data EDiv : (s : NotNull) -> (e : Exp n) -> Type where
-  ValED  : EDiv {n} s (Val k)
-  VarNED : {t : Exp n} -> {p : Nat} -> (pr : IsELin (S p) t) -> EDiv s t
-  Var0ED : {t : Exp (S n)} -> (kd : k `Divides` (fst s)) -> (pr : IsELin 1 t) -> EDiv s (MulV0 k `Plus` t)
-
-data Div : (s : NotNull) -> Form n -> Type where
-  LteDiv  : (pr : EDiv s t) -> Div s (t `Lte` Zero)
-  EqDiv   : (pr : EDiv s t) -> Div s (t `Equ` Zero)
-  NeqDiv  : (pr : EDiv s t) -> Div s (Notf (t `Equ` Zero))
-  DvdDiv  : (knz : Not0 k) -> (pr : EDiv s t) -> Div s (k `Dvd` t)
-  NdvdDiv : (knz : Not0 k) -> (pr : EDiv s t) -> Div s (Notf (k `Dvd` t))
-  ConjDiv : (pr1 : Div s f1) -> (pr2 : Div s f2) -> Div s (f1 `Conj` f2)
-  DisjDiv : (pr1 : Div s f1) -> (pr2 : Div s f2) -> Div s (f1 `Disj` f2)
-
 edivExt : (pr : EDiv m e) -> (n : NotNull) -> (hDiv : Divides (fst m) (fst n)) -> EDiv n e
 edivExt      ValED             _ _    = ValED
 edivExt     (VarNED {p} pr)    _ _    = VarNED {p} pr
@@ -411,37 +181,19 @@ lcmf (Disj f1 f2              ** DisjLin pr1 pr2) =
                    (divExt d1 dnn z1d)
                    (divExt d2 dnn z2d))
 
-data IsEUni : Exp n -> Type where
-  ValEU :  IsEUni (Val {n} k)
-  VarNEU : {t : Exp n} -> (pr : IsELin (S p) t) -> IsEUni t
-  Var0EU : {t : Exp (S n)} -> (k1 : abs k = 1) -> (pr : IsELin 1 t) -> IsEUni (MulV0 k `Plus` t)
-
-EUni : Nat -> Type
-EUni n = (e : Exp n ** IsEUni e)
-
 elinEuni : {e : Exp n} -> IsELin (S p) e -> IsEUni e
 elinEuni  ValEL               = ValEU
 elinEuni (VarEL knz n0lep pr) = VarNEU (VarEL knz n0lep pr)
-
-data IsUni : Form n -> Type where
-  LteUni  : (pr : IsEUni t1) -> IsUni (t1 `Lte` Zero)
-  EqUni   : (pr : IsEUni t1) -> IsUni (t1 `Equ` Zero)
-  NeqUni  : {t1 : Exp n} -> (pr : IsEUni t1) -> IsUni (Notf $ (t1 `Equ` Zero))
-  DvdUni  : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (k `Dvd` t1)
-  NdvdUni : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (Notf $ (k `Dvd` t1))
-  ConjUni : {f1, f2 : Form n} -> (pr1 : IsUni f1) -> (pr2 : IsUni f2) -> IsUni (f1 `Conj` f2)
-  DisjUni : {f1, f2 : Form n} -> (pr1 : IsUni f1) -> (pr2 : IsUni f2) -> IsUni (f1 `Disj` f2)
-
-Uni : Nat -> Type
-Uni n = (f : Form n ** IsUni f)
 
 unitExp : (e : ELin n p) -> (s : NotNull) -> EDiv s (fst e) -> EUni n
 unitExp (Val k ** ValEL)          _          ValED         = (Val k ** ValEU)
 unitExp (e ** _)                  _         (VarNED pr)    = (e ** elinEuni pr)
 unitExp (MulV0 k `Plus` t ** he) (l ** lnz) (Var0ED (DivBy {q} lqk) pr) = 
   case linMult q (t ** pr) of 
-    (i ** hi) => let skl = sign k `multiply` sign l in 
-                 (MulV0 (fromSign skl) `Plus` i ** Var0EU (absFromSign skl $ mulsnz (sign k) (sign l) (notzs $ snd $ mulnz2 {a=q} {b=k} $ rewrite sym lqk in lnz) (notzs lnz)) hi)
+    (i ** hi) => let skl = sign k `multiply` sign l 
+                     sklnz = mulsnz (sign k) (sign l) (notzs $ snd $ mulnz2 {a=q} {b=k} $ rewrite sym lqk in lnz) (notzs lnz)
+                    in 
+                 (MulV0 (fromSign skl) `Plus` i ** Var0EU (eitherFromSign skl sklnz) hi)
 
 myk : (e : ELin n p) -> (hdiv : EDiv s (fst e)) -> Integer
 myk (Val _ ** _)             ValED                   = 1

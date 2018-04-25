@@ -2,6 +2,10 @@ package preger
 
 sourcedir = src
 
-modules = ChaiebNipkow
+modules = Util 
+        , Cooper
+        , Cooper.Forms
+        , Cooper.Normalize
+        , Cooper.Coefficients
 
 pkgs = contrib
