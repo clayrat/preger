@@ -74,8 +74,6 @@ data IsNNF : Form n -> Type where
 NNF : Nat -> Type
 NNF n = (f : Form n ** IsNNF f)
 
--- TODO: `assert_total` needed since Idris apparently can't see structure decreasing under sigma
-
 -- Linearisation
 
 data IsELin : (n0 : Nat) -> (e : Exp n) -> Type where
@@ -128,9 +126,9 @@ EUni n = (e : Exp n ** IsEUni e)
 data IsUni : Form n -> Type where
   LteUni  : (pr : IsEUni t1) -> IsUni (t1 `Lte` Zero)
   EqUni   : (pr : IsEUni t1) -> IsUni (t1 `Equ` Zero)
-  NeqUni  : {t1 : Exp n} -> (pr : IsEUni t1) -> IsUni (Notf $ (t1 `Equ` Zero))
+  NeqUni  : {t1 : Exp n} -> (pr : IsEUni t1) -> IsUni (Notf (t1 `Equ` Zero))
   DvdUni  : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (k `Dvd` t1)
-  NdvdUni : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (Notf $ (k `Dvd` t1))
+  NdvdUni : {t1 : Exp n} -> (knz : Not0 k) -> (pr : IsEUni t1) -> IsUni (Notf (k `Dvd` t1))
   ConjUni : {f1, f2 : Form n} -> (pr1 : IsUni f1) -> (pr2 : IsUni f2) -> IsUni (f1 `Conj` f2)
   DisjUni : {f1, f2 : Form n} -> (pr1 : IsUni f1) -> (pr2 : IsUni f2) -> IsUni (f1 `Disj` f2)
 
