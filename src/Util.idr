@@ -57,7 +57,10 @@ NotNull : Type
 NotNull = (k ** Not0 k)
 
 not01 : Not0 1
-not01 = really_believe_me ()
+not01 z1 = really_believe_me ()
+
+not0m1 : Not0 (-1)
+not0m1 zm1 = really_believe_me ()
 
 oneNN : NotNull
 oneNN = (1 ** not01)
@@ -80,11 +83,11 @@ massoc x y z = really_believe_me ()
 data Divides : (d : Integer) -> (x : Integer) -> Type where
   DivBy : x = q*d -> Divides d x
 
-divRefl : (k : Integer) -> Divides k k
-divRefl k = DivBy {q=1} (sym $ m1 k)
+divRefl : Divides k k
+divRefl {k} = DivBy {q=1} (sym $ m1 k)
   
-divTrans : (x, y, z : Integer) -> Divides x y -> Divides y z -> Divides x z
-divTrans x y z (DivBy {q=q1} xy) (DivBy {q=q2} yz) = 
+divTrans : Divides x y -> Divides y z -> Divides x z
+divTrans {x} (DivBy {q=q1} xy) (DivBy {q=q2} yz) = 
   DivBy {q=q2*q1} $ rewrite sym $ massoc q2 q1 x in rewrite sym xy in yz
 
 data LCM : (i : Integer) -> (j : Integer) -> (d : Integer) -> Type where
@@ -93,8 +96,35 @@ data LCM : (i : Integer) -> (j : Integer) -> (d : Integer) -> Type where
        -> ((m : Integer) -> Divides i m -> Divides j m -> Divides d m)
        -> LCM i j d
 
+-- TODO add to prelude?       
+
+partial
+quot : Integer -> Integer -> Integer       
+quot = div -- TODO
+
+partial
+rem : Integer -> Integer -> Integer       
+rem = mod -- TODO
+
+partial
+gcdI : Integer -> Integer -> Integer
+gcdI x y = gcd' (abs x) (abs y)
+  where 
+  gcd' a 0 = a
+  gcd' a b = gcd' b (a `rem` b)
+
+partial
+lcmI : Integer -> Integer -> Integer
+lcmI _ 0 = 0
+lcmI 0 _ = 0
+lcmI x y = abs ((x `quot` (gcdI x y)) * y)       
+
+---
 lcm : (i, j : Integer) -> (d ** LCM i j d)
-lcm i j = ?lcm
+lcm i j = let d = assert_total $ lcmI i j in 
+          (d ** MkLCM (DivBy {q=d `div` i} $ really_believe_me ()) 
+                      (DivBy {q=d `div` j} $ really_believe_me ()) 
+                      (\m, idm, jdm => DivBy {q=d `div` m} $ really_believe_me ()))
 
 lcmNeq : (m, n : NotNull) -> LCM (fst m) (fst n) d -> Not0 d
 lcmNeq m n lmnd = really_believe_me ()

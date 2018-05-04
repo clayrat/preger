@@ -157,3 +157,19 @@ data IsAF0 : Form n -> Type where
 
 Af0 : Nat -> Type
 Af0 n = (f : Form n ** IsAF0 f)
+
+-- Alldvd
+
+data AllDvd : (s : NotNull) -> Form n -> Type where
+  TopAD  : AllDvd s Top
+  BotAD  : AllDvd s Bot
+  LteAD  : {t1 : Exp n} -> AllDvd s (t1 `Lte` Zero)
+  EquAD  : {t1 : Exp n} -> AllDvd s (t1 `Equ` Zero)
+  NeqAD  : {t1 : Exp n} -> AllDvd s (Notf (t1 `Equ` Zero))
+  DvdAD  : {t1 : Exp n} -> (knz : Not0 k) -> (pr : k `Divides` (fst s)) -> AllDvd s (k `Dvd` t1)
+  NdvdAD : {t1 : Exp n} -> (knz : Not0 k) -> (pr : k `Divides` (fst s)) -> AllDvd s (Notf (k `Dvd` t1))
+  ConjAD : {f1, f2 : Form n} -> (pr1 : AllDvd s f1) -> (pr2 : AllDvd s f2) -> AllDvd s (f1 `Conj` f2)
+  DisjAD : {f1, f2 : Form n} -> (pr1 : AllDvd s f1) -> (pr2 : AllDvd s f2) -> AllDvd s (f1 `Disj` f2)
+
+DAll : Form n -> Type
+DAll f = (s : NotNull ** AllDvd s f)  

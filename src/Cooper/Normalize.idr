@@ -133,7 +133,7 @@ lin (Disj f1 f2 ** DisjNNF nf1 nf2) = case ( assert_total $ lin (f1 ** nf1)
 edivExt : (pr : EDiv m e) -> (n : NotNull) -> (hDiv : Divides (fst m) (fst n)) -> EDiv n e
 edivExt      ValED             _ _    = ValED
 edivExt     (VarNED {p} pr)    _ _    = VarNED {p} pr
-edivExt {m} (Var0ED {k} kd pr) n hDiv = Var0ED (divTrans k (fst m) (fst n) kd hDiv) pr
+edivExt {m} (Var0ED {k} kd pr) n hDiv = Var0ED (divTrans kd hDiv) pr
 
 divExt : {m : NotNull} -> {f : Form n} -> (pr : Div m f) -> (p : NotNull) -> Divides (fst m) (fst p) -> Div p f
 divExt (LteDiv pr)       p dd = LteDiv $ edivExt pr p dd
@@ -147,7 +147,7 @@ divExt (DisjDiv pr1 pr2) p dd = DisjDiv (divExt pr1 p dd) (divExt pr2 p dd)
 lcme : (e : ELin n p) -> (x : NotNull ** EDiv x (fst e))
 lcme         (Val _ ** ValEL)                                  = (oneNN ** ValED {s = oneNN})
 lcme {n=Z}   (Plus (Times _ (Var i)) _ ** VarEL _ _ _)         = absurd i
-lcme {n=S _} (Plus (Times k (Var FZ)) _ ** VarEL knz _ pr)     = ((k ** knz) ** Var0ED (divRefl k) pr)
+lcme {n=S _} (Plus (Times k (Var FZ)) _ ** VarEL knz _ pr)     = ((k ** knz) ** Var0ED divRefl pr)
 lcme {n=S n} (Plus (Times _ (Var (FS i))) _ ** VarEL knz _ pr) = (oneNN ** VarNED {p=finToNat i} {s=oneNN} $ VarEL knz lteRefl pr)
 
 partial -- can't fix this with Integers
