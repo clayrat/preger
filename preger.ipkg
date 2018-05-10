@@ -7,5 +7,8 @@ modules = Util
         , Cooper.Forms
         , Cooper.Normalize
         , Cooper.Coefficients
+        , Cooper.Disjunction
+        , Cooper.Properties
+        , Cooper.QElim
 
 pkgs = contrib

@@ -8,25 +8,6 @@ import Cooper.Forms
 %access public export
 %default total
 
--- Quantifier elimination
-
---qfree : (f : Form n) -> QFree n
---qfree Top = ?qfree_rhs_1
---qfree Bot = ?qfree_rhs_2
---qfree (Dvd k e) = (k `Dvd` e ** DvdQF)
---qfree (Lt e1 e2) = (e1 `Lt` e2 ** LtQF)
---qfree (Gt e1 e2) = (e1 `Gt` e2 ** GtQF)
---qfree (Lte e1 e2) = (e1 `Lte` e2 ** LteQF)
---qfree (Gte e1 e2) = (e1 `Gte` e2 ** GteQF)
---qfree (Equ e1 e2) = (e1 `Equ` e2 ** EquQF)
---qfree (Notf f) = case qfree f of 
---                   (p ** hp) = (Notf p ** NotQF hp)
---qfree (Exists f) = ?qfree_rhs_10
---qfree (Forall f) = ?qfree_rhs_11
---qfree (Conj f1 f2) = ?qfree_rhs_12
---qfree (Disj f1 f2) = ?qfree_rhs_13
---qfree (Impl f1 f2) = ?qfree_rhs_14
-
 -- Negation normal form
 
 -- TODO: `assert_total` needed since Idris apparently can't see structure decreasing under sigma

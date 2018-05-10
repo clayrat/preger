@@ -4,10 +4,7 @@ import Data.So
 import Data.Vect
 import Util
 import Cooper.Forms
-import Cooper.Disjunction
-import Cooper.Coefficients
-import Cooper.Properties
-import Cooper.Normalize
+import Cooper.QElim
 
 %access public export
 %default total
@@ -38,54 +35,34 @@ iForm (Conj f1 f2) rho = (iForm f1 rho, iForm f2 rho)
 iForm (Disj f1 f2) rho = Either (iForm f1 rho) (iForm f2 rho)
 iForm (Impl f1 f2) rho = iForm f1 rho -> iForm f2 rho
 
--- Quantifier elimination
+iEquiv : (f1, f2 : Form n) -> Type
+iEquiv {n} f1 f2 = (r : Vect n Integer) -> (iForm f1 r -> iForm f2 r, iForm f2 r -> iForm f1 r)
 
-uniQelimL1 : (f : Uni (S n)) -> (j : Fin (jset f)) -> Lin n
-uniQelimL1 f j = finiteDisjunctionL (fst f ** isUniIsLin (snd f)) (bjset f j)
+-- Decision procedure
 
-uniQelimL : (f : Uni (S n)) -> Lin n
-uniQelimL f =
-  let d = assert_total $ lcmDvd $ assert_total $ minusinf f
-      lf = uniQelimL1 f 
-     in 
-  assert_total $ finDij lf (range {len = S (dExtract d)})
-
-uniQelimR : (f : Uni (S n)) -> Lin n
-uniQelimR f = 
-  let (p ** h) = assert_total $ minusinf f
-      d = assert_total $ lcmDvd (p ** h) 
-     in 
-  assert_total $ finiteDisjunction {p1 = 1} (p ** (isUniIsLin (isAF0IsUni h))) (map (\u => (Val (finToInteger u) ** ValEL)) (range {len=dExtract d}))
-
-uniQelim : (f : Uni (S n)) -> Lin n
-uniQelim f = 
-  let (f1 ** hf1) = uniQelimL f
-      (f2 ** hf2) = uniQelimR f 
-     in 
-  (Disj f1 f2 ** DisjLin hf1 hf2)
-
-linQelim : (f : Lin (S n)) -> Lin n
-linQelim f = 
-  let ((l ** lz) ** hl) = assert_total $ lcmf f
-      (p ** hp) = unitarise f
-     in 
-   uniQelim ((l `Dvd` ((1 `Times` Var FZ) `Plus` Zero)) `Conj` p ** ConjUni (DvdUni lz (Var0EU (Left Refl) ValEL)) hp)
-
-nnfQelim : (f : NNF (S n)) -> NNF n
-nnfQelim f = 
-  let (p ** hp) = linQelim (lin f) in 
-  (p ** isLinIsNNF hp)
-
-qelim : (а : QFree (S n)) -> QFree n
-qelim f = 
-  let (p ** hp) = nnfQelim (qfreeNnf f) in
-  (p ** isNNFIsQFree hp)
-
--- TODO naive
---qelimF : (qe : {k : Nat} -> Form (S k) -> Form k) -> Form n -> Form n
---qelimF qe (Forall p) = Notf (qe (Notf (qelimF qe p)))
---qelimF qe (Exists p) = qe (qelimF qe p)
---qelimF qe (Conj p q) = Conj (qelimF qe p) (qelimF qe q)
---qelimF qe (Disj p q) = Disj (qelimF qe p) (qelimF qe q)
---qelimF qe (Impl p q) = Impl (qelimF qe p) (qelimF qe q)
---qelimF _  p          = p
+qfreeSem : (f : Form n) -> iEquiv f (fst $ qfree f)
+qfreeSem  Top        _ = (id, id)
+qfreeSem  Bot        _ = (id, id)
+qfreeSem (Dvd k e)   _ = (id, id)
+qfreeSem (Lt e1 e2)  _ = (id, id)
+qfreeSem (Gt e1 e2)  _ = (id, id)
+qfreeSem (Lte e1 e2) _ = (id, id)
+qfreeSem (Gte e1 e2) _ = (id, id)
+qfreeSem (Equ e1 e2) _ = (id, id)
+qfreeSem (Notf f)    r with (qfree f) proof qf
+  qfreeSem (Notf f)    r | (p ** h) = let (a, b) = qfreeSem f r in 
+                                      rewrite cong {f=DPair.fst} qf in 
+                                      (\x => x . b, \y => y . a)
+qfreeSem (Exists f)   r = ?wot_10
+qfreeSem (Forall f)   r = ?wot_11
+qfreeSem (Conj f1 f2) r = ?wot_12
+qfreeSem (Disj f1 f2) r = ?wot_13
+qfreeSem (Impl f1 f2) r = ?wot_14
+ 
+decPA : (f : Form n) -> (r : Vect n Integer) -> Dec (iForm f r)  
+decPA f r = 
+  let (p, q) = qfreeSem f r in 
+  ?wat  
+  --case qfreeDec (qfree f) r of 
+  --  Yes h => Yes (q h)
+  --  No nh => No (\x => nh (p x))  
