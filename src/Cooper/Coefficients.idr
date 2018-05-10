@@ -1,5 +1,6 @@
 module Cooper.Coefficients
 
+import Data.Fin
 import Util
 import Cooper.Forms
 import Cooper.Normalize
@@ -29,13 +30,14 @@ bset (f1 `Disj` f2 ** DisjUni pr1 pr2)                                          
   assert_total (bset (f1 ** pr1)) ++ assert_total (bset (f2 ** pr2))
 bset (_ ** _) = []
 
+-- TODO checks instead of Top/Bot?
 partial -- also likely not fixeable with Integers
 minusinf : (f : Uni n) -> Af0 n
-minusinf ((MulV0   1  `Plus` t)       `Lte` Zero  ** LteUni (Var0EU (Left  Refl) pr)) = 
-  (Bot ** BotAF0)
-minusinf ((MulV0 (-1) `Plus` t)       `Lte` Zero  ** LteUni (Var0EU (Right Refl) pr)) = 
-  (Top ** TopAF0)  
-minusinf ((MulV0   _  `Plus` _)       `Equ` Zero  ** EqUni  (Var0EU _ _))             = 
+minusinf ((MulV0   1  `Plus` t)        `Lte` Zero ** LteUni (Var0EU (Left  Refl) pr)) = 
+  (Bot ** BotAF0) 
+minusinf ((MulV0 (-1) `Plus` t)        `Lte` Zero ** LteUni (Var0EU (Right Refl) pr)) = 
+  (Top ** TopAF0)   
+minusinf ((MulV0   _  `Plus` _)        `Equ` Zero ** EqUni  (Var0EU _ _))             = 
   (Bot ** BotAF0)
 minusinf (Notf $ (MulV0   _  `Plus` _) `Equ` Zero ** NeqUni (Var0EU _ _))             = 
   (Top ** TopAF0)
@@ -65,8 +67,8 @@ minusinf (Notf (t                     `Equ` Zero) ** NeqUni (VarNEU pr))        
 
 partial -- also likely not fixeable with Integers  
 lcmDvd : (f : Af0 n) -> DAll (fst f)
---lcmDvd (Top                 ** TopAF0)        = (oneNN ** TopAD)
---lcmDvd (Bot                 ** BotAF0)        = (oneNN ** BotAD)
+lcmDvd (Top                 ** TopAF0)        = (oneNN ** TopAD)
+lcmDvd (Bot                 ** BotAF0)        = (oneNN ** BotAD)
 lcmDvd (t `Lte` Zero        ** LteAF0 _)      = (oneNN ** LteAD)
 lcmDvd (t `Equ` Zero        ** EquAF0 _)      = (oneNN ** EquAD)
 lcmDvd (Notf (t `Equ` Zero) ** NeqAF0 _)      = (oneNN ** NeqAD)
@@ -88,7 +90,7 @@ lcmDvd (p1 `Disj` p2        ** DisjAF0 h1 h2) = case (lcmDvd (p1 ** h1), lcmDvd 
                                                     ((s ** sz) ** DisjAD (alldvdExt pr1 (s ** sz) di) (alldvdExt pr2 (s ** sz) dj))
 
 bjset : (f : Uni n) -> (j : Fin p) -> List (ELin n 1)
-bjset f j = map (\u => linPlus u (Val (finToNat j) ** ValEL)) (bset f)
+bjset f j = map (\u => linPlus u (Val (finToInteger j) ** ValEL)) (bset f)
 
 dExtract : (d : DAll f) -> Nat
 dExtract d = fromInteger $ abs $ fst $ fst d

@@ -32,6 +32,8 @@ import Cooper.Forms
 -- TODO: `assert_total` needed since Idris apparently can't see structure decreasing under sigma
 
 nnfNeg : (f : NNF n) -> NNF n
+nnfNeg (Top ** TopNNF)                 = (Bot ** BotNNF)
+nnfNeg (Bot ** BotNNF)                 = (Top ** TopNNF)
 nnfNeg (Lte t1 t2 ** LteNNF)           = ((t2 `Plus` (Val 1)) `Lte` t1 ** LteNNF)
 nnfNeg (Equ t1 t2 ** EquNNF)           = (Notf (t1 `Equ` t2) ** NeqNNF)
 nnfNeg (Notf (Equ t1 t2) ** NeqNNF)    = (t1 `Equ` t2 ** EquNNF)
@@ -45,6 +47,8 @@ nnfNeg (Disj f1 f2 ** DisjNNF nf1 nf2) = case ( assert_total $ nnfNeg (f1 ** nf1
     ((p1 ** np1), (p2 ** np2)) => (p1 `Conj` p2 ** ConjNNF np1 np2)
 
 qfreeNnf : (f : QFree n) -> NNF n
+qfreeNnf (Top ** TopQF)                 = (Top ** TopNNF)
+qfreeNnf (Bot ** BotQF)                 = (Bot ** BotNNF)
 qfreeNnf (Lt t1 t2 ** LtQF)             = ((t1 `Plus` (Val 1)) `Lte` t2 ** LteNNF)
 qfreeNnf (Gt t1 t2 ** GtQF)             = ((t2 `Plus` (Val 1)) `Lte` t1 ** LteNNF)
 qfreeNnf (Lte t1 t2 ** LteQF)           = (t1 `Lte` t2 ** LteNNF)
@@ -107,6 +111,8 @@ elin (Minus e1 e2) = linPlus (elin e1) (linNeg $ elin e2)
 elin (Times k e)   = linMult k (elin e)
 
 lin : NNF n -> Lin n
+lin (Top ** TopNNF)                 = (Top ** TopLin)
+lin (Bot ** BotNNF)                 = (Bot ** BotLin)
 lin (Lte t1 t2 ** LteNNF)           = case elin (t1 `Minus` t2) of
   (e ** pe) => (e `Lte` Zero ** LteLin pe)
 lin (Equ t1 t2 ** EquNNF)           = case elin (t1 `Minus` t2) of

@@ -46,6 +46,8 @@ MulV0 : (k : Integer) -> Exp (S n)
 MulV0 k = k `Times` Var FZ
 
 data IsQFree : Form n -> Type where
+  TopQF  : IsQFree Top
+  BotQF  : IsQFree Bot
   LtQF  : {t1, t2 : Exp n} -> IsQFree (Lt t1 t2)
   GtQF  : {t1, t2 : Exp n} -> IsQFree (Gt t1 t2)
   LteQF : {t1, t2 : Exp n} -> IsQFree (Lte t1 t2)
@@ -63,6 +65,8 @@ QFree n = (f : Form n ** IsQFree f)
 -- Negation normal form
 
 data IsNNF : Form n -> Type where
+  TopNNF  : IsNNF Top
+  BotNNF  : IsNNF Bot
   LteNNF  : {t1, t2 : Exp n} -> IsNNF (Lte t1 t2)
   EquNNF  : {t1, t2 : Exp n} -> IsNNF (Equ t1 t2)
   NeqNNF  : {t1, t2 : Exp n} -> IsNNF (Notf (Equ t1 t2))
@@ -88,6 +92,8 @@ ELin : Nat -> Nat -> Type
 ELin n p = (e : Exp n ** IsELin p e)
 
 data IsLin : Form n -> Type where
+  TopLin  : IsLin Top
+  BotLin  : IsLin Bot
   LteLin  : {t : Exp n} -> (pr : IsELin Z t) -> IsLin (Lte t Zero)
   EqLin   : {t : Exp n} -> (pr : IsELin Z t) -> IsLin (Equ t Zero)
   NeqLin  : {t : Exp n} -> (pr : IsELin Z t) -> IsLin (Notf $ Equ t Zero)
@@ -124,6 +130,8 @@ EUni : Nat -> Type
 EUni n = (e : Exp n ** IsEUni e)
 
 data IsUni : Form n -> Type where
+  TopUni  : IsUni Top
+  BotUni  : IsUni Bot
   LteUni  : (pr : IsEUni t1) -> IsUni (t1 `Lte` Zero)
   EqUni   : (pr : IsEUni t1) -> IsUni (t1 `Equ` Zero)
   NeqUni  : {t1 : Exp n} -> (pr : IsEUni t1) -> IsUni (Notf (t1 `Equ` Zero))
@@ -145,8 +153,8 @@ EAf0 : Nat -> Type
 EAf0 n = (e : Exp n ** IsEAF0 e)
   
 data IsAF0 : Form n -> Type where
---  TopAF0  : IsAF0 Top
---  BotAF0  : IsAF0 Bot
+  TopAF0  : IsAF0 Top
+  BotAF0  : IsAF0 Bot
   LteAF0  : {t1 : Exp n} -> (pr : IsEAF0 t1) -> IsAF0 (t1 `Lte` Zero)
   EquAF0  : {t1 : Exp n} -> (pr : IsEAF0 t1) -> IsAF0 (t1 `Equ` Zero)
   NeqAF0  : {t1 : Exp n} -> (pr : IsEAF0 t1) -> IsAF0 (Notf (t1 `Equ` Zero))
@@ -161,8 +169,8 @@ Af0 n = (f : Form n ** IsAF0 f)
 -- Alldvd
 
 data AllDvd : (s : NotNull) -> Form n -> Type where
---  TopAD  : AllDvd s Top
---  BotAD  : AllDvd s Bot
+  TopAD  : AllDvd s Top
+  BotAD  : AllDvd s Bot
   LteAD  : {t1 : Exp n} -> AllDvd s (t1 `Lte` Zero)
   EquAD  : {t1 : Exp n} -> AllDvd s (t1 `Equ` Zero)
   NeqAD  : {t1 : Exp n} -> AllDvd s (Notf (t1 `Equ` Zero))

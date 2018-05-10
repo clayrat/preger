@@ -122,9 +122,9 @@ lcmI x y = abs ((x `quot` (gcdI x y)) * y)
 ---
 lcm : (i, j : Integer) -> (d ** LCM i j d)
 lcm i j = let d = assert_total $ lcmI i j in 
-          (d ** MkLCM (DivBy {q=d `div` i} $ really_believe_me ()) 
-                      (DivBy {q=d `div` j} $ really_believe_me ()) 
-                      (\m, idm, jdm => DivBy {q=d `div` m} $ really_believe_me ()))
+          assert_total $ (d ** MkLCM (DivBy {q=d `div` i} $ really_believe_me ()) 
+                                     (DivBy {q=d `div` j} $ really_believe_me ()) 
+                                     (\m, idm, jdm => DivBy {q=d `div` m} $ really_believe_me ()))
 
 lcmNeq : (m, n : NotNull) -> LCM (fst m) (fst n) d -> Not0 d
 lcmNeq m n lmnd = really_believe_me ()

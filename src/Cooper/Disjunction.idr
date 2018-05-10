@@ -59,7 +59,8 @@ instForm (Disj f1 f2        ** DisjLin pr1 pr2) e1 =
      in
   (p1 `Disj` p2 ** DisjLin h1 h2)    
     
-finiteDisjunction : (f : Lin (S n)) -> (l : Vect (S p) (ELin (S n) (S p1))) -> Lin n
+finiteDisjunction : (f : Lin (S n)) -> (l : Vect p (ELin (S n) (S p1))) -> Lin n
+finiteDisjunction _ []  = (Bot ** BotLin)
 finiteDisjunction f [x] = assert_total $ instForm f x
 finiteDisjunction f (x :: x1 :: xs) = 
   let (p1 ** h1) = assert_total $ instForm f x 
@@ -67,7 +68,8 @@ finiteDisjunction f (x :: x1 :: xs) =
     in
       (p1 `Disj` p2 ** DisjLin h1 h2)
 
-finiteDisjunctionL : (f : Lin (S n)) -> (l : List (ELin (S n) (S p1))) -> {auto ok : NonEmpty l} -> Lin n
+finiteDisjunctionL : (f : Lin (S n)) -> (l : List (ELin (S n) (S p1))) -> Lin n
+finiteDisjunctionL _ []  = (Bot ** BotLin)
 finiteDisjunctionL f [x] = assert_total $ instForm f x
 finiteDisjunctionL f (x :: x1 :: xs) = 
   let (p1 ** h1) = assert_total $ instForm f x 
