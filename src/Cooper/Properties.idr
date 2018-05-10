@@ -45,12 +45,12 @@ isUniIsLin (ConjUni pr1 pr2) = ConjLin (isUniIsLin pr1) (isUniIsLin pr2)
 isUniIsLin (DisjUni pr1 pr2) = DisjLin (isUniIsLin pr1) (isUniIsLin pr2)
 
 alldvdExt : {m : NotNull} -> {f : Form n} -> (pr : AllDvd m f) -> (p : NotNull) -> (fst m) `Divides` (fst p) -> AllDvd p f
-alldvdExt TopAD _ _ = TopAD
-alldvdExt BotAD _ _ = BotAD 
-alldvdExt LteAD _ _ = LteAD
-alldvdExt EquAD _ _ = EquAD 
-alldvdExt NeqAD _ _ = NeqAD 
-alldvdExt (DvdAD knz kdm) _ mdp = DvdAD knz (divTrans kdm mdp)
+--alldvdExt TopAD            _ _   = TopAD
+--alldvdExt BotAD            _ _   = BotAD 
+alldvdExt LteAD            _ _   = LteAD
+alldvdExt EquAD            _ _   = EquAD 
+alldvdExt NeqAD            _ _   = NeqAD 
+alldvdExt (DvdAD knz kdm)  _ mdp = DvdAD knz (divTrans kdm mdp)
 alldvdExt (NdvdAD knz kdm) _ mdp = NdvdAD knz (divTrans kdm mdp)
 alldvdExt (ConjAD pr1 pr2) p mdp = ConjAD (alldvdExt pr1 p mdp) (alldvdExt pr2 p mdp)
 alldvdExt (DisjAD pr1 pr2) p mdp = DisjAD (alldvdExt pr1 p mdp) (alldvdExt pr2 p mdp)

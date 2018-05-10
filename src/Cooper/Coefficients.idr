@@ -65,8 +65,8 @@ minusinf (Notf (t                     `Equ` Zero) ** NeqUni (VarNEU pr))        
 
 partial -- also likely not fixeable with Integers  
 lcmDvd : (f : Af0 n) -> DAll (fst f)
-lcmDvd (Top                 ** TopAF0)        = (oneNN ** TopAD)
-lcmDvd (Bot                 ** BotAF0)        = (oneNN ** BotAD)
+--lcmDvd (Top                 ** TopAF0)        = (oneNN ** TopAD)
+--lcmDvd (Bot                 ** BotAF0)        = (oneNN ** BotAD)
 lcmDvd (t `Lte` Zero        ** LteAF0 _)      = (oneNN ** LteAD)
 lcmDvd (t `Equ` Zero        ** EquAF0 _)      = (oneNN ** EquAD)
 lcmDvd (Notf (t `Equ` Zero) ** NeqAF0 _)      = (oneNN ** NeqAD)
@@ -86,6 +86,9 @@ lcmDvd (p1 `Disj` p2        ** DisjAF0 h1 h2) = case (lcmDvd (p1 ** h1), lcmDvd 
                                                         MkLCM di dj least = sl
                                                        in 
                                                     ((s ** sz) ** DisjAD (alldvdExt pr1 (s ** sz) di) (alldvdExt pr2 (s ** sz) dj))
+
+bjset : (f : Uni n) -> (j : Fin p) -> List (ELin n 1)
+bjset f j = map (\u => linPlus u (Val (finToNat j) ** ValEL)) (bset f)
 
 dExtract : (d : DAll f) -> Nat
 dExtract d = fromInteger $ abs $ fst $ fst d

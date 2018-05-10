@@ -145,8 +145,8 @@ EAf0 : Nat -> Type
 EAf0 n = (e : Exp n ** IsEAF0 e)
   
 data IsAF0 : Form n -> Type where
-  TopAF0  : IsAF0 Top
-  BotAF0  : IsAF0 Bot
+--  TopAF0  : IsAF0 Top
+--  BotAF0  : IsAF0 Bot
   LteAF0  : {t1 : Exp n} -> (pr : IsEAF0 t1) -> IsAF0 (t1 `Lte` Zero)
   EquAF0  : {t1 : Exp n} -> (pr : IsEAF0 t1) -> IsAF0 (t1 `Equ` Zero)
   NeqAF0  : {t1 : Exp n} -> (pr : IsEAF0 t1) -> IsAF0 (Notf (t1 `Equ` Zero))
@@ -161,8 +161,8 @@ Af0 n = (f : Form n ** IsAF0 f)
 -- Alldvd
 
 data AllDvd : (s : NotNull) -> Form n -> Type where
-  TopAD  : AllDvd s Top
-  BotAD  : AllDvd s Bot
+--  TopAD  : AllDvd s Top
+--  BotAD  : AllDvd s Bot
   LteAD  : {t1 : Exp n} -> AllDvd s (t1 `Lte` Zero)
   EquAD  : {t1 : Exp n} -> AllDvd s (t1 `Equ` Zero)
   NeqAD  : {t1 : Exp n} -> AllDvd s (Notf (t1 `Equ` Zero))
